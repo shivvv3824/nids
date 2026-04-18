@@ -256,3 +256,73 @@ def describe_splits(train_df: pd.DataFrame, test_df: pd.DataFrame) -> str:
         f"  Test attack rate:  {test_df['binary_label'].mean():.3f}",
     ]
     return "\n".join(lines)
+
+
+# NSL-KDD+ coarse taxonomy for SOC dashboards (byte-ratio / family plots).
+_DOS_LABELS = frozenset(
+    {
+        "apache2",
+        "back",
+        "land",
+        "neptune",
+        "mailbomb",
+        "pod",
+        "processtable",
+        "smurf",
+        "teardrop",
+        "udpstorm",
+        "worm",
+    }
+)
+_PROBE_LABELS = frozenset({"ipsweep", "mscan", "nmap", "portsweep", "saint", "satan"})
+_R2L_LABELS = frozenset(
+    {
+        "ftp_write",
+        "guess_passwd",
+        "httptunnel",
+        "imap",
+        "multihop",
+        "named",
+        "phf",
+        "sendmail",
+        "snmpgetattack",
+        "snmpguess",
+        "spy",
+        "warezclient",
+        "warezmaster",
+        "xlock",
+        "xsnoop",
+    }
+)
+_U2R_LABELS = frozenset(
+    {
+        "buffer_overflow",
+        "loadmodule",
+        "perl",
+        "ps",
+        "rootkit",
+        "sqlattack",
+        "xterm",
+    }
+)
+
+
+def coarse_attack_family(label: str) -> str:
+    """
+    Map a NSL-KDD ``label`` string to a high-level attack family.
+
+    Families align with analyst playbooks (volume floods vs reconnaissance vs
+    remote-to-local userland abuse vs user-to-root privilege escalation).
+    """
+    s = str(label).strip().lower()
+    if s == "normal":
+        return "Normal"
+    if s in _DOS_LABELS:
+        return "DoS"
+    if s in _PROBE_LABELS:
+        return "Probe"
+    if s in _R2L_LABELS:
+        return "R2L"
+    if s in _U2R_LABELS:
+        return "U2R"
+    return "Other"
