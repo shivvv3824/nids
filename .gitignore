@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+
+# NSL-KDD data (large; download locally)
+data/*.txt
+data/*.csv
+!data/.gitkeep
+
+# Pipeline outputs
+artifacts/
+models/*.joblib
+models/*.pkl
+!models/.gitkeep
