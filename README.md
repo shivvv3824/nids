@@ -1,6 +1,6 @@
 # NIDS — NSL-KDD Network Intrusion Detection
 
-Python pipeline for classifying malicious vs benign **NSL-KDD** connection records: ingestion and cleaning, **20+ engineered features**, scaled numerics with one-hot categoricals, **tuned Random Forest + XGBoost** (with a logistic baseline), evaluation (accuracy, ROC-AUC, **FPR vs baseline**), and a **Matplotlib/Seaborn SOC-style dashboard** (PCA embedding, IoC importances, confusion matrix, attack-family byte-ratio violins).
+Python pipeline for classifying malicious vs benign **NSL-KDD** connection records: ingestion and cleaning, **20+ engineered features**, scaled numerics with one-hot categoricals, **tuned Random Forest + XGBoost** (with a logistic baseline), evaluation (accuracy, ROC-AUC, **FPR vs baseline**), and a **Matplotlib/Seaborn SOC-style dashboard** (PCA embedding, IoC importances, confusion matrix, attack-family byte-ratio distribution plot).
 
 **Repository:** [github.com/shivvv3824/nids](https://github.com/shivvv3824/nids)
 
@@ -68,7 +68,25 @@ requirements.txt
 | 1 | Implemented | Load NSL-KDD, clean, engineer features, fit preprocessing |
 | 2 | Implemented | Logistic baseline + tuned RF + tuned XGBoost (HGB fallback), `joblib` to `models/` |
 | 3 | Implemented | Classification report, ROC-AUC, FPR vs baseline, RF/XGB importances → JSON |
-| 4 | Implemented | SOC dashboard: PCA scatter, top-10 IoC bars, confusion heatmap, family violins |
+| 4 | Implemented | SOC dashboard: PCA scatter, top-10 IoC bars, confusion heatmap, family byte-ratio distribution |
+
+## Proof of work
+
+Validated in this environment with a synthetic NSL-KDD-shaped dataset (smoke test for code-path execution), using:
+
+```bash
+python main.py --phase all --fast \
+  --data-dir /path/to/tmp_synth_data \
+  --artifacts-dir /path/to/tmp_artifacts \
+  --models-dir /path/to/tmp_models
+```
+
+Observed results:
+
+- All four phases completed successfully (1 → 4) end-to-end.
+- `Phase 3` produced `evaluation_report.json`.
+- `Phase 4` produced `soc_dashboard.png`.
+- If XGBoost cannot load (`libomp.dylib` missing on macOS), pipeline falls back to `HistGradientBoostingClassifier` and still writes `models/xgboost.joblib`.
 
 ## License
 

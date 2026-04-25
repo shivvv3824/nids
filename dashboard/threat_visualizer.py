@@ -166,18 +166,20 @@ def build_soc_dashboard(
         ax_d.text(0.5, 0.5, "Insufficient labeled rows for family plot", ha="center", va="center")
         ax_d.axis("off")
     else:
-        sns.violinplot(
+        # Violin KDE can crash on some constrained SciPy/macOS runtimes.
+        # Boxplot keeps the same analyst signal while avoiding that native path.
+        sns.boxplot(
             data=plot_df,
             x="family",
             y="byte_ratio_src_to_dst",
             hue="family",
             ax=ax_d,
             order=["Normal", "DoS", "Probe", "R2L", "U2R"],
-            inner="quart",
-            cut=0,
             palette="muted",
-            legend=False,
+            dodge=False,
         )
+        if ax_d.get_legend() is not None:
+            ax_d.get_legend().remove()
         ax_d.set_title("Byte ratio (src→dst) by NSL attack family")
         ax_d.set_xlabel("Attack family")
         ax_d.set_ylabel("src_bytes / (dst_bytes + 1)")

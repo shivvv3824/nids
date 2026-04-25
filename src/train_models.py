@@ -19,6 +19,7 @@ complete ``X_train``.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from pathlib import Path
 from typing import Any, Dict, Tuple
 
@@ -39,6 +40,25 @@ class TrainedModelPack:
     random_forest_path: Path
     xgboost_path: Path
     metadata_path: Path
+
+
+def _resolve_parallel_jobs() -> int:
+    """
+    Return a safe ``n_jobs`` value for this runtime.
+
+    Some restricted environments deny access to semaphore-related sysconf keys,
+    which causes joblib/loky multiprocessing to fail early. In that case we
+    force single-process execution so training still completes.
+    """
+    # Safe default for broad portability (sandboxes, CI, constrained macOS envs).
+    # Set NIDS_N_JOBS to an integer (for example, -1 or 8) to opt into parallelism.
+    configured = os.getenv("NIDS_N_JOBS")
+    if configured is None:
+        return 1
+    try:
+        return int(configured)
+    except ValueError:
+        return 1
 
 
 def _stratified_subsample(
@@ -78,7 +98,7 @@ def train_baseline(X_train: np.ndarray, y_train: np.ndarray, random_state: int) 
         max_iter=4000,
         class_weight="balanced",
         solver="lbfgs",
-        n_jobs=-1,
+        n_jobs=_resolve_parallel_jobs(),
         random_state=random_state,
     )
     model.fit(X_train, y_train)
@@ -94,6 +114,7 @@ def train_random_forest_tuned(
     n_iter: int,
     cv_folds: int,
 ) -> Tuple[RandomForestClassifier, Dict[str, Any]]:
+    n_jobs = _resolve_parallel_jobs()
     X_s, y_s = _stratified_subsample(X_train, y_train, search_subsample, random_state)
     cv = StratifiedKFold(n_splits=cv_folds, shuffle=True, random_state=random_state)
     param_dist: Dict[str, Any] = {
@@ -104,21 +125,21 @@ def train_random_forest_tuned(
         "max_features": ["sqrt", 0.3, 0.5, 0.7],
         "class_weight": ["balanced_subsample", "balanced"],
     }
-    base = RandomForestClassifier(random_state=random_state, n_jobs=-1)
+    base = RandomForestClassifier(random_state=random_state, n_jobs=n_jobs)
     search = RandomizedSearchCV(
         base,
         param_distributions=param_dist,
         n_iter=n_iter,
         scoring="roc_auc",
         cv=cv,
-        n_jobs=-1,
+        n_jobs=n_jobs,
         random_state=random_state,
         verbose=1,
         refit=True,
     )
     search.fit(X_s, y_s)
     best_params = dict(search.best_params_)
-    final = RandomForestClassifier(random_state=random_state, n_jobs=-1, **best_params)
+    final = RandomForestClassifier(random_state=random_state, n_jobs=n_jobs, **best_params)
     final.fit(X_train, y_train)
     return final, {"best_params": best_params, "best_cv_roc_auc": float(search.best_score_)}
 
@@ -137,6 +158,7 @@ def _train_hist_gradient_fallback(
 
     Uses ``HistGradientBoostingClassifier`` with a comparable boosted-tree search.
     """
+    n_jobs = _resolve_parallel_jobs()
     X_s, y_s = _stratified_subsample(X_train, y_train, search_subsample, random_state)
     cv = StratifiedKFold(n_splits=cv_folds, shuffle=True, random_state=random_state)
     param_dist: Dict[str, Any] = {
@@ -158,7 +180,7 @@ def _train_hist_gradient_fallback(
         n_iter=n_iter,
         scoring="roc_auc",
         cv=cv,
-        n_jobs=-1,
+        n_jobs=n_jobs,
         random_state=random_state,
         verbose=1,
         refit=True,
@@ -189,6 +211,7 @@ def train_xgboost_tuned(
     n_iter: int,
     cv_folds: int,
 ) -> Tuple[Any, Dict[str, Any]]:
+    n_jobs = _resolve_parallel_jobs()
     try:
         from xgboost import XGBClassifier
     except Exception as exc:  # pragma: no cover - platform-specific binary deps
@@ -224,7 +247,7 @@ def train_xgboost_tuned(
         eval_metric="auc",
         tree_method="hist",
         random_state=random_state,
-        n_jobs=-1,
+        n_jobs=n_jobs,
         scale_pos_weight=spw,
     )
     search = RandomizedSearchCV(
@@ -233,7 +256,7 @@ def train_xgboost_tuned(
         n_iter=n_iter,
         scoring="roc_auc",
         cv=cv,
-        n_jobs=-1,
+        n_jobs=n_jobs,
         random_state=random_state,
         verbose=1,
         refit=True,
@@ -245,7 +268,7 @@ def train_xgboost_tuned(
         eval_metric="auc",
         tree_method="hist",
         random_state=random_state,
-        n_jobs=-1,
+        n_jobs=n_jobs,
         scale_pos_weight=spw,
         **best_params,
     )
